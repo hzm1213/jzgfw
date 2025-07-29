@@ -1,0 +1,36 @@
+name: Sync _worker.js from edgetunnel
+
+on:
+  schedule:
+    - cron: '0 17 * * *'  # 每天北京时间 1 AM，对应 UTC 时间 17:00
+  workflow_dispatch:       # 手动触发按钮
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout current repo
+        uses: actions/checkout@v4
+
+      - name: Get latest _worker.js from cmliu/edgetunnel
+        run: |
+          curl -sL https://raw.githubusercontent.com/cmliu/edgetunnel/main/_worker.js -o new_worker.js
+
+      - name: Check for differences
+        id: check_diff
+        run: |
+          if ! cmp -s new_worker.js _worker.js; then
+            echo "changed=true" >> $GITHUB_OUTPUT
+          else
+            echo "changed=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Replace _worker.js and commit changes
+        if: steps.check_diff.outputs.changed == 'true'
+        run: |
+          mv new_worker.js _worker.js
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add _worker.js
+          git commit -m "🔄 Update _worker.js from edgetunnel"
+          git push
